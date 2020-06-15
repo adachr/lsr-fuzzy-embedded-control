@@ -55,7 +55,7 @@ Fuzzy* fuzzy2 = new Fuzzy();
 //FuzzySet *_hot =       new FuzzySet(40, 50, 50, 60);
 //FuzzySet *_very_hot =  new FuzzySet(50, 60, 125, 125);
 //
-//// FuzzyOutput fan
+// FuzzyOutput fan
 //FuzzySet *_zero =      new FuzzySet(0, 0, 0, 0);
 //FuzzySet *_slow =      new FuzzySet(45, 85, 85, 130);
 //FuzzySet *_medium =    new FuzzySet(85, 130, 130, 170);
@@ -79,12 +79,12 @@ FuzzySet *too_hot =     new FuzzySet(31, 34, 35, 35);
 FuzzySet *humidity_critical_low =  new FuzzySet(0, 0, 15, 25);
 FuzzySet *humidity_low =           new FuzzySet(20, 28, 28, 32);
 FuzzySet *humidity_good =          new FuzzySet(30, 40, 55, 62);
-FuzzySet* humidity_high =          new FuzzySet(60, 70, 70, 85);
-FuzzySet* humidity_critical_high = new FuzzySet(80, 90, 100, 100);
+FuzzySet *humidity_high =          new FuzzySet(60, 70, 70, 85);
+FuzzySet *humidity_critical_high = new FuzzySet(80, 90, 100, 100);
 
 // FuzzyOutput weather overall
-FuzzySet *very_bad =  new FuzzySet(0, 16, 16, 32);
-FuzzySet *bad =       new FuzzySet(32, 48, 48, 64);
+FuzzySet *very_bad =  new FuzzySet(0, 0, 0, 8);
+FuzzySet *bad =       new FuzzySet(8, 48, 48, 64);
 FuzzySet *optimal =   new FuzzySet(64, 80, 80, 96);
 FuzzySet *good =      new FuzzySet(96, 112, 112, 128);
 FuzzySet *very_good = new FuzzySet(128, 144, 144, 160);
@@ -240,6 +240,15 @@ void setup()
     weather_overall->addFuzzySet(very_good);
     fuzzy2->addFuzzyOutput(weather_overall);
 
+    //FuzzyOutputSet1 for fan control
+    /*FuzzyOutput *speed = new FuzzyOutput(2);
+    speed->addFuzzySet(_zero);
+    speed->addFuzzySet(_slow);
+    speed->addFuzzySet(_medium);
+    speed->addFuzzySet(_fast);
+    speed->addFuzzySet(_very_fast);
+    fuzzy2->addFuzzyOutput(speed);*/
+
     // improved MM
 
     // very_bad
@@ -249,8 +258,11 @@ void setup()
     deadly_humidity2->joinWithOR(deadly_humidity, really_cold);
     FuzzyRuleAntecedent* deadly_humidity3 = new FuzzyRuleAntecedent();
     deadly_humidity3->joinWithOR(deadly_humidity2, humidity_critical_high);
+
     FuzzyRuleConsequent* dont_go_outside = new FuzzyRuleConsequent();
     dont_go_outside->addOutput(very_bad);
+    //dont_go_outside->addOutput(_very_fast);
+
     FuzzyRule* fuzzyRule1 = new FuzzyRule(1, deadly_humidity3, dont_go_outside);
     fuzzy2->addFuzzyRule(fuzzyRule1);
 
@@ -300,6 +312,7 @@ void setup()
     FuzzyRuleConsequent* best = new FuzzyRuleConsequent();
     best->addOutput(very_good);
     FuzzyRule* fuzzyRule5 = new FuzzyRule(5, if_weather_warm_and_humidity_good, best);
+
     fuzzy2->addFuzzyRule(fuzzyRule5);
 }
 
@@ -335,10 +348,11 @@ void loop()
         fan(fan_control);*/
         
         float comfort = fuzzy2->defuzzify(1);
-        Serial.print("Comfort: ");
-        Serial.println(comfort);
+        //float fan_control = fuzzy2->defuzzify(2);
+
+        
         diode(comfort);
-        fan(comfort);
+        fan(comfort, temp);
 
         weatherChrono.restart();
     }
@@ -420,18 +434,29 @@ void temp_sensor(float& temp)
     lcd.print("C");
 }
 
-void fan(int comfort)
+void fan(float fan_control, float temp)
 {
-    float speed;
+    float  speed;
     Serial.print("Fan speed: ");
-    speed = map(comfort, 160, 0, 0, 255);
+    speed = temp < 20 ?  0 : map(fan_control, 160, 0, 0, 255);
     analogWrite(FanGate, speed);
     Serial.println(speed);
 }
 
 void diode(float comfort) 
 {
+    Serial.print("Comfort: ");
+    Serial.print(comfort);
     showAnalogRGB(CHSV(comfort, 255, 255));
+
+    Serial.print(" -> ");
+
+    if (comfort < 8) Serial.println("very_bad");
+    else if (comfort < 64) Serial.println("bad");
+    else if (comfort < 96) Serial.println("optimal");
+    else if (comfort < 128) Serial.println("good");
+    else if (comfort <= 160) Serial.println("very_good");
+
 }
 
 // print device address from the address array
